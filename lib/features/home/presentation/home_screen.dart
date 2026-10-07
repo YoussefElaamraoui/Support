@@ -1,150 +1,119 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/database/app_database.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_typography.dart';
+import '../../../core/utils/date_utils.dart';
+import '../../../core/widgets/care_top_bar.dart';
+import '../../../core/widgets/profile_avatar.dart';
+import '../../profile/application/profile_controller.dart';
+import '../application/mood_controller.dart';
+import '../application/quiz_questions.dart';
+import '../application/session_controller.dart';
+import '../application/wellbeing_controller.dart';
+import 'widgets/mood_calendar.dart';
+import 'widgets/mood_selector.dart';
+import 'widgets/quiz_card.dart';
+import 'widgets/session_card.dart';
+import 'widgets/stat_cards.dart';
 
 class HomeScreen extends StatelessWidget {
-  const HomeScreen({required this.appDatabase, super.key});
+  const HomeScreen({
+    required this.profileController,
+    required this.moodController,
+    required this.sessionController,
+    required this.wellbeingController,
+    super.key,
+  });
 
-  final AppDatabase appDatabase;
+  final ProfileController profileController;
+  final MoodController moodController;
+  final SessionController sessionController;
+  final WellbeingController wellbeingController;
 
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Expanded(
-                  child: Text(
-                    'Welcome back, Alex Miller',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                IconButton(onPressed: () {}, icon: const Icon(Icons.notifications_none)),
-              ],
-            ),
-            const SizedBox(height: 16),
-            const Text('How are you feeling today?', style: TextStyle(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 10),
-            const Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _MoodChip(label: 'Happy', icon: Icons.sentiment_very_satisfied),
-                _MoodChip(label: 'Angry', icon: Icons.sentiment_very_dissatisfied),
-                _MoodChip(label: 'Sleepy', icon: Icons.bedtime_outlined),
-                _MoodChip(label: 'Bored', icon: Icons.sentiment_neutral),
-              ],
-            ),
-            const SizedBox(height: 18),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
+      bottom: false,
+      child: Column(
+        children: [
+          ListenableBuilder(
+            listenable: profileController,
+            builder: (context, _) {
+              final profile = profileController.profile;
+              return CareTopBar(
+                leading: ProfileAvatar(profile: profile, size: 44),
+                bottomBorder: false,
+                menuStyle: MenuButtonStyle.square,
+                title: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text('2h 15m Active Caregiving', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        FilledButton.tonal(onPressed: () {}, child: const Text('Pause')),
-                        const SizedBox(width: 8),
-                        FilledButton(onPressed: () {}, child: const Text('Stop')),
-                      ],
+                    Text('Welcome back',
+                        style: AppTypography.labelSm.copyWith(fontSize: 13, color: AppColors.onSurfaceVariant)),
+                    Text(
+                      profile.fullName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.bodyLg.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w800,
+                        height: 1.2,
+                      ),
                     ),
                   ],
                 ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Row(
-              children: [
-                Expanded(
-                  child: _MetricCard(
-                    title: 'Sleep Duration',
-                    value: '6h 45m avg',
-                    chart: '▁▃▄▆▅▇▆',
+              );
+            },
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1200),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      ListenableBuilder(
+                        listenable: Listenable.merge([profileController, moodController]),
+                        builder: (context, _) => Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text(
+                              DateFmt.medium(moodController.today),
+                              style: AppTypography.labelSm.copyWith(fontSize: 13, color: AppColors.onSurfaceVariant),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Hello ${profileController.profile.firstName}! How are you feeling today?',
+                              style: AppTypography.pageHeadline(context),
+                            ),
+                            const SizedBox(height: 24),
+                            MoodSelector(
+                              selected: moodController.todaysMood,
+                              onSelected: (mood) => moodController.setMood(moodController.today, mood),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      SessionCard(controller: sessionController),
+                      const SizedBox(height: 16),
+                      StatCards(controller: wellbeingController),
+                      const SizedBox(height: 16),
+                      QuizCard(
+                        questions: quizQuestions,
+                        onCompleted: wellbeingController.applyQuizAnswers,
+                      ),
+                      const SizedBox(height: 16),
+                      MoodCalendar(controller: moodController),
+                    ],
                   ),
                 ),
-                SizedBox(width: 10),
-                Expanded(
-                  child: _MetricCard(
-                    title: 'Stress Indicator',
-                    value: 'High',
-                    chart: '●',
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            const Text('Mood Calendar', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 10),
-            GridView.count(
-              crossAxisCount: 7,
-              childAspectRatio: 1,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              children: List.generate(
-                28,
-                (index) {
-                  const moods = ['🙂', '😴', '😠', '😐'];
-                  return Card(
-                    margin: const EdgeInsets.all(2),
-                    child: Center(child: Text(moods[index % moods.length])),
-                  );
-                },
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _MoodChip extends StatelessWidget {
-  const _MoodChip({required this.label, required this.icon});
-
-  final String label;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        CircleAvatar(child: Icon(icon)),
-        const SizedBox(height: 4),
-        Text(label),
-      ],
-    );
-  }
-}
-
-class _MetricCard extends StatelessWidget {
-  const _MetricCard({required this.title, required this.value, required this.chart});
-
-  final String title;
-  final String value;
-  final String chart;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 8),
-            Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text(chart, style: const TextStyle(letterSpacing: 2)),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
